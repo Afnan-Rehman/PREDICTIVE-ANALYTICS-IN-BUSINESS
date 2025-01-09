@@ -1,0 +1,168 @@
+---
+title: "WASFD"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r}
+library(vars)    
+library(tseries) 
+library(forecast) 
+library(ggplot2) 
+```
+
+```{r}
+SFP <- read.csv(choose.files())
+```
+
+```{r}
+head(SFP)
+```
+
+```{r}
+summary(SFP)
+```
+
+
+
+```{r}
+
+head(SFP$Date)
+
+
+SFP$Date <- as.Date(paste("01", SFP$Date), format = "%d %b-%y")  
+
+
+head(SFP$Date)
+
+```
+```{r}
+
+plot(as.Date(SFP$Date), SFP$WA_SFD, type = 'l', col = "red", 
+     xlab = "Date", ylab = "SFD (%)", main = "SFD Percentage Changes for WA and NSW, VIC, SA & ACT")
+
+
+lines(as.Date(SFP$Date), SFP$NSW_SFD, col = "blue")
+lines(as.Date(SFP$Date), SFP$Vic_SFD, col = "black")
+lines(as.Date(SFP$Date), SFP$SA_SFD, col = "purple")
+lines(as.Date(SFP$Date), SFP$ACT_SFD, col = "green")
+
+
+legend("topright", legend = c("WA SFD", "NSW SFD", "Vic_SFD", "SA_SFD","ACT_SFD" ), col = c("red", "blue", "black","purple", "green"), lty = 1)
+```
+
+
+```{r}
+SFD_variables <- SFP[, c("WA_SFD", "NSW_SFD", "Vic_SFD", "queensland_SFD","SA_SFD", "Tas_SFD", "NT_SFD", "ACT_SFD")]
+summary(SFD_variables)
+```
+
+```{r}
+SFD_ts <- ts(SFD_variables, start = c(1985, 1), frequency = 4)  
+
+
+head(SFD_ts)
+```
+
+
+```{r}
+
+library(tseries)
+
+
+adf_test_WA <- adf.test(SFD_ts[, "WA_SFD"])
+adf_test_NSW <- adf.test(SFD_ts[, "NSW_SFD"])
+adf_test_Vic <- adf.test(SFD_ts[, "Vic_SFD"])
+adf_test_Queensland <- adf.test(SFD_ts[, "queensland_SFD"])
+adf_test_SA <- adf.test(SFD_ts[, "SA_SFD"])
+adf_test_Tas <- adf.test(SFD_ts[, "Tas_SFD"])
+adf_test_NT <- adf.test(SFD_ts[, "NT_SFD"])
+adf_test_ACT <- adf.test(SFD_ts[, "ACT_SFD"])
+
+
+cat("ADF Test Results:\n")
+cat("Western Australia:\n"); print(adf_test_WA)
+cat("New South Wales:\n"); print(adf_test_NSW)
+cat("Victoria:\n"); print(adf_test_Vic)
+cat("Queensland:\n"); print(adf_test_Queensland)
+cat("South Australia:\n"); print(adf_test_SA)
+cat("Tasmania:\n"); print(adf_test_Tas)
+cat("Northern Territory:\n"); print(adf_test_NT)
+cat("Australian Capital Territory:\n"); print(adf_test_ACT)
+
+
+```
+
+```{r}
+
+library(vars)
+
+# Select the optimal lag length using AIC
+lag_selection <- VARselect(SFD_ts, lag.max = 10, type = "both")  # Change type if needed (const, trend, none)
+print(lag_selection$selection)  # View the optimal lag based on AIC
+
+
+
+```
+*VAR MODEL FIT & FORECAST*
+```{r}
+
+var_model_const <- VAR(SFD_ts, p = 1, type = "const")
+
+# Summary of the VAR model with constant
+summary(var_model_const)
+
+# Forecast with constant-only model
+forecast_const <- predict(var_model_const, n.ahead = 4)
+plot(forecast_const, names = "WA_SFD", main = "Forecast of WA SFD (Constant Only)", ylab = "WA SFD (%)")
+
+
+```
+```{r}
+#
+var_model_trend <- VAR(SFD_ts, p = 1, type = "trend")
+
+
+summary(var_model_trend)
+
+
+forecast_trend <- predict(var_model_trend, n.ahead = 4)
+plot(forecast_trend, names = "WA_SFD", main = "Forecast of WA SFD (Trend Only)", ylab = "WA SFD (%)")
+
+```
+
+```{r}
+
+var_model_none <- VAR(SFD_ts, p = 1, type = "none")
+
+
+summary(var_model_none)
+
+
+forecast_none <- predict(var_model_none, n.ahead = 4)
+plot(forecast_none, names = "WA_SFD", main = "Forecast of WA SFD (No Constant/Trend)", ylab = "WA SFD (%)")
+
+```
+
+*Portmanteau Test*
+```{r}
+
+serial.test(var_model_const, lags.pt = 10, type = "PT.asymptotic")  # For constant model
+serial.test(var_model_trend, lags.pt = 10, type = "PT.asymptotic")  # For trend model
+serial.test(var_model_none, lags.pt = 10, type = "PT.asymptotic")   # For none model
+
+```
+
+
+
+
+*heteroscedasticity*
+```{r}
+
+arch.test(var_model_const)  # For constant model
+arch.test(var_model_trend)  # For trend model
+arch.test(var_model_none)   # For none model
+
+```
+

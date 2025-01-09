@@ -1,0 +1,303 @@
+---
+title: "Index"
+output: html_notebook
+---
+
+```{r}
+data <- read.csv(choose.files())
+```
+
+
+```{r}
+head(data)
+```
+
+```{r}
+summary(data)
+
+```
+
+
+
+
+```{r}
+
+library(data.table)
+
+
+
+library(data.table)
+
+
+
+setDT(data)
+
+
+data[, Date := as.Date(gsub(":", "-", Date), format = "%Y-%m-%d")]
+
+
+head(data)
+
+```
+```{r}
+library(zoo)
+
+# Interpolate the missing values
+data$Price <- na.approx(data$Price)
+
+```
+
+```{r}
+summary(data)
+```
+
+
+
+
+
+
+```{r}
+attach(data)
+
+plot(as.Date(Date), Price, type = 'l', col = "red")
+```
+
+```{r}
+library(tseries)
+adf_test_price <- adf.test(Price, alternative = "stationary")
+print(adf_test_price)
+
+```
+
+
+2.
+
+```{r}
+# Calculate the log returns of the stock price for Price
+ret_Price <- diff(log(Price)) * 100
+head(ret_Price)
+
+summary(ret_Price)
+
+```
+```{r}
+
+plot(as.Date(Date[2:nrow(data)]), ret_Price, type = 'l', col="blue", xlab = "Date", 
+     ylab = "Returns (Price)")
+
+```
+
+
+```{r}
+adf_test_price_return <- adf.test(ret_Price, alternative = "stationary")
+print(adf_test_price_return)
+```
+
+c. 
+
+
+```{r}
+# histogram of returns
+x <- ret_Price
+hist(x, col = 'red', freq= F)
+
+# overlay the normal distribution with the same mean and variance as the returns
+curve(dnorm(x, mean=mean(ret_Price, na.rm=T), sd=sd(ret_Price, na.rm = T)), 
+      col="darkblue", lwd=1, add=TRUE, yaxt="n")
+```
+
+```{r}
+# Perform Shapiro-Wilk test on residuals or returns
+shapiro.test(ret_Price)
+
+```
+
+
+
+d. 
+
+
+```{r}
+# autocorrelation function
+acf(ret_Price, na.action = na.pass)
+
+```
+
+```{r}
+#partial autocorrelation function
+pacf(ret_Price, na.action = na.pass)
+```
+
+
+e.
+
+```{r}
+install.packages("forecast")
+```
+
+
+
+```{r}
+
+library(zoo)
+ret_Price <- na.locf(ret_Price, na.rm = FALSE)
+
+
+price_ts <- ts(ret_Price)
+
+
+library(forecast)
+ar1_model <- Arima(price_ts, order = c(1, 0, 0))
+summary(ar1_model)
+
+
+```
+```{r}
+# AR model with lag 2
+ar2_model <- Arima(price_ts, order = c(2, 0, 0))
+summary(ar2_model)
+```
+```{r}
+#with lag3
+ar3_model <- Arima(price_ts, order = c(3, 0, 0))
+summary(ar3_model)
+```
+
+```{r}
+
+checkresiduals(ar1_model)
+
+```
+
+```{r}
+# Residual diagnostics for AR(2)
+checkresiduals(ar2_model)
+```
+
+```{r}
+# Residual diagnostics for AR(3)
+checkresiduals(ar3_model)
+```
+
+
+
+```{r}
+# MA model with lag 1
+ma1_model <- Arima(price_ts, order = c(0, 0, 1))
+summary(ma1_model)
+
+```
+
+
+
+```{r}
+# MA model with lag 2
+ma2_model <- Arima(price_ts, order = c(0, 0, 2))
+summary(ma2_model)
+
+```
+
+```{r}
+# MA model with lag 3
+ma3_model <- Arima(price_ts, order = c(0, 0, 3))
+summary(ma3_model)
+
+```
+```{r}
+checkresiduals(ma1_model)
+
+```
+
+```{r}
+checkresiduals(ma2_model)
+
+```
+
+```{r}
+checkresiduals(ma3_model)
+
+```
+f.
+
+
+```{r}
+ar2_residuals <- residuals(ar2_model)
+
+
+ar2_squared_residuals <- ar2_residuals^2
+
+
+acf(ar2_squared_residuals, main = "ACF of Squared Residuals for AR(2) Model")
+```
+```{r}
+lagged_data <- data.frame(
+  lag0 = ar2_squared_residuals,
+  lag1 = c(NA, ar2_squared_residuals[-length(ar2_squared_residuals)]),
+  lag2 = c(NA, NA, ar2_squared_residuals[-c((length(ar2_squared_residuals)-1):length(ar2_squared_residuals))]),
+  lag3 = c(NA, NA, NA, ar2_squared_residuals[-c((length(ar2_squared_residuals)-2):length(ar2_squared_residuals))]),
+  lag4 = c(NA, NA, NA, NA, ar2_squared_residuals[-c((length(ar2_squared_residuals)-3):length(ar2_squared_residuals))]),
+  lag5 = c(NA, NA, NA, NA, NA, ar2_squared_residuals[-c((length(ar2_squared_residuals)-4):length(ar2_squared_residuals))])
+)
+
+
+lagged_data <- na.omit(lagged_data)
+
+
+garch_test_model <- lm(lag0 ~ lag1 + lag2 + lag3 + lag4 + lag5, data = lagged_data)
+
+
+summary(garch_test_model)
+```
+g.
+
+
+```{r}
+install.packages("rugarch")
+```
+
+
+```{r}
+library(rugarch)
+
+
+garch_spec <- ugarchspec(
+  variance.model = list(garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = TRUE),
+  distribution.model = "norm"
+)
+
+
+garch_fit <- ugarchfit(spec = garch_spec, data = ret_Price)
+
+show(garch_fit)
+```
+
+```{r}
+
+garch_residuals <- residuals(garch_fit, standardize = TRUE)
+
+
+acf(garch_residuals, main = "ACF of GARCH(1,1) Residuals")
+
+
+garch_squared_residuals <- garch_residuals^2
+
+
+acf(garch_squared_residuals, main = "ACF of Squared Residuals from GARCH(1,1)")
+
+```
+```{r}
+library(rugarch)
+
+garch_t_spec <- ugarchspec(
+  variance.model = list(garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = TRUE),
+  distribution.model = "std"  # "std" specifies the t-distribution
+)
+
+
+garch_t_fit <- ugarchfit(spec = garch_t_spec, data = ret_Price)
+
+show(garch_t_fit)
+```
+

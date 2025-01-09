@@ -1,0 +1,203 @@
+---
+title: "QUESTION_NO_1"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+```{r}
+ata <- read.csv(choose.files())
+```
+
+```{r}
+head(ata)
+tail(ata)
+```
+
+```{r}
+summary(ata)
+```
+
+```{r}
+attach(ata)
+```
+
+
+
+
+```{r}
+options(jupyter.plot_scale = 1.5)
+# plot the prices of each stock
+plot(as.Date(Date), K1, type = 'l', col = "red")
+plot(as.Date(Date), K2, type = 'l', col = "green")
+```
+```{r}
+ata$K1_log <- log(ata$K1)
+summary(ata)
+
+```
+
+
+
+
+
+```{r}
+attach(ata)
+
+plot(as.Date(Date), K1_log, type = "l", col = "red", ylab = "num", xlab = "Date")
+
+
+par(new = TRUE)  # Allow new plot on the same figure
+plot(as.Date(Date), K2, type = "l", col = "green", axes = FALSE, xlab = "", ylab = "")
+
+
+
+legend("topleft", legend = c("K1", "K2"), col = c("red", "green"), lty = 1, cex = 0.7)
+
+```
+
+
+
+TEST
+
+```{r}
+library(tseries)
+
+```
+b. 
+
+```{r}
+
+# ADF test for K1
+adf_test_K1 <- adf.test(K1_log, alternative = "stationary")
+print(adf_test_K1)
+# ADF test for K2
+adf_test_K2 <- adf.test(K2, alternative = "stationary")
+print(adf_test_K2)
+
+
+
+
+```
+c. 
+
+```{r}
+
+cointegrating_model <- lm(K1_log ~ K2, data = ata)
+summary(cointegrating_model)
+
+
+residuals_eg <- residuals(cointegrating_model)
+
+adf_test_residuals <- adf.test(residuals_eg, alternative = "stationary")
+print(adf_test_residuals)
+
+```
+
+
+
+Order of Intergration
+
+```{r}
+
+cat("First few rows of K1_log:\n")
+head(ata$K1_log)
+
+cat('--------------\n')
+cat("First few rows of differenced K1_log:\n")
+head(diff(ata$K1_log, 1))
+
+
+plot(diff(ata$K1_log, 1), type = 'l', main = "First Difference of K1_log", ylab = "Differences", xlab = "Index")
+
+
+cat("\nFirst few rows of K2:\n")
+head(ata$K2)
+
+cat('--------------\n')
+cat("First few rows of differenced K2:\n")
+head(diff(ata$K2, 1))
+
+
+plot(diff(ata$K2, 1), type = 'l', main = "First Difference of K2", ylab = "Differences", xlab = "Index")
+
+
+```
+
+```{r}
+
+adf_test_K1_log_diff <- adf.test(diff(ata$K1_log, 1), alternative = "stationary")
+print(adf_test_K1_log_diff)
+
+
+adf_test_K2_diff <- adf.test(diff(ata$K2, 1), alternative = "stationary")
+print(adf_test_K2_diff)
+
+```
+```{r}
+
+library(tseries)
+
+
+pp_test_K1_log <- pp.test(diff(ata$K1_log, 1))
+print(pp_test_K1_log)
+
+
+pp_test_K2 <- pp.test(diff(ata$K2, 1))
+print(pp_test_K2)
+
+
+kpss_test_K1_log <- kpss.test(diff(ata$K1_log, 1))
+print(kpss_test_K1_log)
+
+
+kpss_test_K2 <- kpss.test(diff(ata$K2, 1))
+print(kpss_test_K2)
+
+```
+granger causality 
+```{r}
+
+cointegrating_model <- lm(K1_log ~ K2, data = ata)
+summary(cointegrating_model)
+
+
+residuals_eg <- residuals(cointegrating_model)
+
+
+adf_test_residuals <- adf.test(residuals_eg, alternative = "stationary")
+print(adf_test_residuals)
+
+```
+ERROR CORRECTION MODEL:
+
+
+```{r}
+dK1 <- diff(ata$K1_log)
+dK2 <- diff(ata$K2)
+
+
+residuals_eg_diff <- residuals_eg[-1]
+ecm <- lm(dK1 ~ residuals_eg_diff + dK2)
+summary(ecm)
+```
+
+
+```{r}
+install.packages("dynlm")
+```
+```{r}
+install.packages("vars")
+```
+
+
+```{r}
+library(zoo)    
+library(dynlm)  
+library(vars)   
+library(car)    
+```
+
+```{r}
+
+```
+
